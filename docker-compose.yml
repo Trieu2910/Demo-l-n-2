@@ -1,6 +1,24 @@
 version: '3'
 
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cs60_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://backend:5000  # 👉 sửa lại ở đây
+    depends_on:
+      - backend
+    networks:
+      - cs60_network
+
   backend:
     build:
       context: ./backend
@@ -13,10 +31,10 @@ services:
       - /app/node_modules
     environment:
       NODE_ENV: development
-    networks:
-      - cs60_network
     depends_on:
       - mysql
+    networks:
+      - cs60_network
 
   mysql:
     image: mysql:8.0
@@ -28,7 +46,7 @@ services:
       MYSQL_PASSWORD: cs60password
       MYSQL_ROOT_PASSWORD: rootpassword
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/init:/docker-entrypoint-initdb.d
@@ -46,10 +64,10 @@ services:
       PMA_PASSWORD: rootpassword
     ports:
       - "8080:80"
-    networks:
-      - cs60_network
     depends_on:
       - mysql
+    networks:
+      - cs60_network
 
 networks:
   cs60_network:
