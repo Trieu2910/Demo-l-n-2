@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phòng Thi Trực Tuyến</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-indigo-800 min-h-screen text-white font-sans">
+
+  <!-- Header -->
+  <header class="bg-white/10 backdrop-blur-md shadow-lg sticky top-0 z-10 border-b border-purple-400/30">
+  <div class="max-w-6xl mx-auto flex justify-between items-center py-4 px-6">
+    <!-- Logo / Tên App -->
+    <h1 class="text-3xl font-bold text-white tracking-wide">Tuyển dụng</h1>
+
+    <!-- Thông tin người dùng và đăng xuất -->
+    <div class="flex items-center gap-4">
+      <span id="userName" class="font-medium text-purple-200">Xin chào, học viên!</span>
+      
+      <button id="logoutBtn" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:opacity-90 transition">
+        Đăng xuất
+      </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Chuyển về index.html khi bấm Đăng xuất
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+</script>
+
+
+  <!-- Hero -->
+  <section class="text-center py-12 bg-gradient-to-r from-indigo-600 to-purple-700 shadow-lg">
+    <h2 class="text-4xl font-semibold mb-3">Hệ thống thi trực tuyến thông minh</h2>
+    <p class="text-purple-100 mb-6 text-lg">Thực hiện bài thi có giám sát khuôn mặt bằng AI – an toàn, tiện lợi và chuyên nghiệp</p>
+
+    <button
+      id="startExamBtn"
+      class="bg-gradient-to-r from-yellow-400 to-amber-300 text-indigo-900 px-8 py-3 rounded-lg font-bold hover:scale-105 hover:shadow-lg transition"
+    >
+      🚀 Bắt đầu làm bài
+    </button>
+  </section>
+
+  <!-- Main content -->
+  <main class="max-w-5xl mx-auto mt-10 p-8 bg-white/10 rounded-2xl shadow-xl border border-purple-300/30 backdrop-blur-md">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-2xl font-semibold flex items-center gap-2 text-white">
+        📝 Danh sách bài test tuyển dụng
+      </h3>
+      <div class="flex items-center gap-4">
+        
+      </div>
+    </div>
+
+    <!-- Danh sách bài thi -->
+    <div id="examList" class="grid md:grid-cols-2 gap-6">
+      <!-- Render JS -->
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center py-6 text-purple-200 mt-12 border-t border-purple-500/30">
+    © 2025 <span class="text-white font-semibold">ExamPro</span>. All rights reserved.
+  </footer>
+
+  <!-- JS -->
+  <script>
+    // Danh sách bài thi mẫu
+    const exams = [
+      { name: "Công ty FPT tuyển dev", desc: "Kiểm tra kiến thức cơ bản về mã nguồn mở và code chuyên sâu" },
+      { name: "Công ty uniliver tuyển tester", desc: "Bài thi nhận biết lỗi trong đoạn code nhỏ" },
+      { name: "công ty VNPT tuyển PM", desc: "Kiểm tra kỹ năng quản lý team" },
+      { name: "công ty Viettel tuyển designer", desc: "Câu hỏi trắc nghiệm về các phong cách design" },
+    ];
+
+    const list = document.getElementById("examList");
+    exams.forEach(e => {
+      const div = document.createElement("div");
+      div.className = "p-6 rounded-xl bg-gradient-to-br from-purple-800/40 to-indigo-800/40 border border-purple-400/30 hover:shadow-2xl hover:scale-[1.02] transition";
+      div.innerHTML = `
+        <h4 class="text-lg font-semibold text-white mb-2">${e.name}</h4>
+        <p class="text-purple-200 mb-4">${e.desc}</p>
+        <button
+          class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition"
+          onclick="window.location.href='test.html'"
+        >
+          Làm bài thi
+        </button>
+      `;
+      list.appendChild(div);
+    });
+
+    // Toggle camera
+    const cam = document.getElementById("examCam");
+    const camPlaceholder = document.getElementById("camPlaceholder");
+    const btn = document.getElementById("toggleCamBtn");
+    let stream = null;
+
+    btn.addEventListener("click", async () => {
+      if (cam.classList.contains("hidden")) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          cam.srcObject = stream;
+          cam.classList.remove("hidden");
+          camPlaceholder.classList.add("hidden");
+          btn.textContent = "Tắt camera";
+        } catch (err) {
+          alert("Không thể bật camera: " + err.message);
+        }
+      } else {
+        cam.classList.add("hidden");
+        camPlaceholder.classList.remove("hidden");
+        btn.textContent = "Quét khuôn mặt";
+        if (stream) stream.getTracks().forEach(t => t.stop());
+      }
+    });
+
+    // Xử lý đăng xuất
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    });
+  </script>
+</body>
+</html>

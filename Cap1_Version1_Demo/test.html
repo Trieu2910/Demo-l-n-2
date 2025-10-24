@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bài Thi - ExamPro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body, main, header, footer, section, aside {
+      transition: opacity 0.3s ease;
+    }
+
+    .alert-box, .cheat-alert {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%);
+      background: linear-gradient(135deg, #2b2bff, #a16eff);
+      color: #fff;
+      padding: 20px 35px;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.3);
+      font-size: 18px;
+      font-weight: 500;
+      text-align: center;
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .alert-box.show, .cheat-alert.show {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+
+    .cheat-alert a {
+      display: inline-block;
+      margin-top: 10px;
+      background-color: #f87171;
+      padding: 6px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: white;
+      font-weight: 500;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-700 via-purple-700 to-indigo-800 min-h-screen text-white font-sans">
+
+  <!-- Thông báo bật camera -->
+  <div id="cameraAlert" class="alert-box hidden">
+    ⚠️ Vui lòng bật camera để xác thực trước khi tiếp tục!
+  </div>
+
+  <!-- Thông báo gian lận -->
+  <div id="cheatAlert" class="cheat-alert hidden">
+    ⚠️ Bạn có hành vi gian lận!<br>
+    <a href="exam.html">Quay lại trang chủ</a>
+  </div>
+
+  <header id="header" class="bg-white/10 backdrop-blur-md shadow-lg sticky top-0 z-10 border-b border-purple-400/30 relative">
+    <div class="max-w-6xl mx-auto flex justify-between items-center py-4 px-6">
+      <h1 class="text-2xl font-bold text-white tracking-wide">Bài Thi Toán - ExamPro</h1>
+      <div class="flex items-center gap-4">
+        <div id="timer" class="text-yellow-300 font-semibold text-xl">45:00</div>
+
+        <div class="relative w-32 h-24 border-2 border-purple-300 rounded-lg overflow-hidden bg-purple-900/30 shadow-inner">
+          <video id="examCam" autoplay playsinline muted style="width:100%;height:100%;display:none;"></video>
+          <div id="camPlaceholder" class="absolute inset-0 flex items-center justify-center text-purple-300 text-sm">📷 Tắt</div>
+        </div>
+
+        <button id="toggleCamBtn" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm hover:opacity-90 transition">
+          Bật camera
+        </button>
+
+        <a href="exam.html" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition">
+          Quay lại
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="max-w-6xl mx-auto mt-10 grid grid-cols-12 gap-6 p-4">
+    <aside class="col-span-3 bg-white/10 rounded-2xl p-5 border border-purple-400/30 backdrop-blur-md shadow-lg">
+      <h3 class="text-lg font-semibold mb-4 text-purple-200">Danh sách câu hỏi</h3>
+      <div id="questionNav" class="grid grid-cols-5 gap-3"></div>
+    </aside>
+
+    <section class="col-span-9 bg-white/10 rounded-2xl p-8 border border-purple-400/30 backdrop-blur-md shadow-lg relative">
+      <div id="questionArea" class="pointer-events-none opacity-50"></div>
+    </section>
+  </main>
+
+  <footer id="footer" class="text-center py-6 text-purple-200 mt-8 border-t border-purple-500/30">
+    © 2025 by C1SE.60
+  </footer>
+
+  <script>
+    const questions = [
+      { id: 1, text: "Ngôn ngữ nào thường được sử dụng để xây dựng ứng dụng web phía máy chủ?", options: ["HTML", "CSS", "Python", "SQL"], answer: 2 },
+      { id: 2, text: "Git dùng để làm gì?", options: ["Thiết kế giao diện", "Lưu trữ dữ liệu", "Quản lý phiên bản mã nguồn", "Tạo API"], answer: 2 },
+      { id: 3, text: "Câu lệnh nào dùng để in ra màn hình trong JavaScript?", options: ["print()", "console.log()", "echo()", "display()"], answer: 1 },
+      { id: 4, text: "Cấu trúc vòng lặp nào trong Python là hợp lệ?", options: ["for(i=0;i<10;i++)", "repeat 10 times", "for i in range(10):", "loop(10)"], answer: 2 },
+      { id: 5, text: "Cơ sở dữ liệu quan hệ lưu trữ dữ liệu dưới dạng gì?", options: ["Tài liệu", "Cây", "Bảng", "Tệp văn bản"], answer: 2 }
+    ];
+
+    let currentQuestion = 0;
+    const questionArea = document.getElementById("questionArea");
+    const questionNav = document.getElementById("questionNav");
+    const timerEl = document.getElementById("timer");
+    const alertBox = document.getElementById("cameraAlert");
+    const cheatAlert = document.getElementById("cheatAlert");
+    const cam = document.getElementById("examCam");
+    const camPlaceholder = document.getElementById("camPlaceholder");
+    const btn = document.getElementById("toggleCamBtn");
+
+    let cameraEnabled = false;
+    let selectedAnswers = {};
+    let stream = null;
+    let examDisabled = false;
+
+    // Render danh sách câu hỏi
+    questions.forEach((q, i) => {
+      const b = document.createElement("button");
+      b.textContent = q.id;
+      b.className = "bg-purple-800/60 text-white py-2 rounded-lg hover:bg-purple-600 transition font-semibold";
+      b.addEventListener("click", () => {
+        if (examDisabled) return;
+        if(cameraEnabled) showQuestion(i);
+        else showAlert();
+      });
+      questionNav.appendChild(b);
+    });
+
+    function showQuestion(i){
+      currentQuestion = i;
+      const q = questions[i];
+      questionArea.innerHTML = `
+        <h2 class="text-2xl font-semibold mb-6 text-white">${q.text}</h2>
+        <div class="space-y-3">
+          ${q.options.map((opt, idx) => `
+            <label class="flex items-center gap-3 bg-white/10 p-3 rounded-lg cursor-pointer hover:bg-purple-700/40 transition">
+              <input type="radio" name="q${q.id}" value="${idx}" ${selectedAnswers[q.id]==idx?"checked":""} class="accent-purple-400">
+              <span>${opt}</span>
+            </label>
+          `).join("")}
+        </div>
+        <div class="flex justify-between mt-8">
+          <button class="bg-indigo-500 px-5 py-2 rounded-lg hover:bg-indigo-600 transition" ${i===0?"disabled":""} onclick="showQuestion(${i-1})">⬅ Trước</button>
+          <button class="bg-indigo-500 px-5 py-2 rounded-lg hover:bg-indigo-600 transition" ${i===questions.length-1?"disabled":""} onclick="showQuestion(${i+1})">Tiếp ➡</button>
+        </div>
+      `;
+      document.querySelectorAll(`input[name='q${q.id}']`).forEach(inp=>{
+        inp.addEventListener("change", e=>selectedAnswers[q.id]=parseInt(e.target.value));
+      });
+    }
+    showQuestion(0);
+
+    // bộ đếm giờ
+    let totalSeconds = 45*60;
+    const countdown = setInterval(()=>{
+      totalSeconds--;
+      const m = String(Math.floor(totalSeconds/60)).padStart(2,"0");
+      const s = String(totalSeconds%60).padStart(2,"0");
+      timerEl.textContent = `${m}:${s}`;
+    },1000);
+
+    function showAlert(){
+      alertBox.classList.remove("hidden");
+      alertBox.classList.add("show");
+      setTimeout(()=>alertBox.classList.remove("show"),2500);
+    }
+
+    // Toggle camera
+    btn.addEventListener("click", async ()=>{
+      if(cameraEnabled) return;
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({video:true});
+        cam.srcObject = stream;
+        cam.style.display = "block";
+        cam.play();
+        camPlaceholder.style.display = "none";
+        btn.textContent = "Camera đang bật";
+        btn.disabled = true;
+        cameraEnabled = true;
+        questionArea.classList.remove("pointer-events-none","opacity-50");
+      }catch(err){
+        alert("Không thể bật camera: "+err.message);
+      }
+    });
+
+    document.addEventListener("click", e=>{
+      if(!cameraEnabled && !btn.contains(e.target)) showAlert();
+    });
+
+    // Phát hiện gian lận
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.hidden && !examDisabled){
+        examDisabled = true;
+        cheatAlert.classList.remove("hidden");
+        cheatAlert.classList.add("show");
+
+        // Ẩn toàn bộ giao diện thi
+        document.getElementById("header").style.opacity = 0.2;
+        document.getElementById("main").style.opacity = 0.2;
+        document.getElementById("footer").style.opacity = 0.2;
+        questionArea.classList.add("pointer-events-none");
+        btn.disabled = true;
+      }
+    });
+  </script>
+</body>
+</html>

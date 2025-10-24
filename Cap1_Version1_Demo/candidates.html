@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quản lý hồ sơ ứng viên</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .container{padding:24px;max-width:1100px;margin:90px auto}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .card h4{margin:0 0 6px 0;color:var(--neon1)}
+    .meta{color:#9aa6bf;font-size:13px;margin-bottom:8px}
+    .actions-row{display:flex;gap:8px;flex-wrap:wrap}
+    .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .file-name{font-size:13px;color:#cfe7ff}
+    .empty{color:#9aa6bf;text-align:center;padding:40px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="exam-header">
+    <h2>Quản lý hồ sơ - Ứng viên</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button id="exportBtn" class="btn ghost">Xuất JSON</button>
+      <button id="importBtn" class="btn ghost">Nhập JSON</button>
+      <input id="importFile" type="file" accept="application/json" style="display:none">
+      <button id="newBtn" class="btn primary">Thêm hồ sơ mới</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <section id="formPanel" class="panel hidden">
+      <h3 id="formTitle">Thêm hồ sơ</h3>
+      <div class="form-row">
+        <input id="name" class="input" placeholder="Họ và tên" />
+        <input id="email" class="input" placeholder="Email" />
+      </div>
+      <div class="form-row">
+        <input id="position" class="input" placeholder="Vị trí ứng tuyển" />
+        <input id="phone" class="input" placeholder="Số điện thoại" />
+      </div>
+      <div style="margin-bottom:8px">
+        <label class="muted">Tải lên CV (PDF)</label>
+        <input id="cvFile" type="file" accept="application/pdf" />
+        <div id="cvName" class="file-name"></div>
+      </div>
+      <div class="actions-row">
+        <button id="saveBtn" class="btn primary">Lưu</button>
+        <button id="cancelBtn" class="btn ghost">Hủy</button>
+      </div>
+    </section>
+
+    <section id="listPanel">
+      <div id="cards" class="cards"></div>
+      <div id="empty" class="empty hidden">Chưa có hồ sơ ứng viên. Nhấn "Thêm hồ sơ mới" để bắt đầu.</div>
+    </section>
+  </main>
+
+  <script>
+    // Simple client-side CV manager using localStorage (no backend). Stores file as base64 data URL.
+    const LS_KEY = 'cap1_candidates_v1';
+
+    function uid(){return 'id-'+Math.random().toString(36).slice(2,9)}
+
+    function readStore(){
+      try{return JSON.parse(localStorage.getItem(LS_KEY) || '[]')}
+      catch(e){console.warn(e);return []}
+    }
+    function writeStore(v){localStorage.setItem(LS_KEY, JSON.stringify(v))}
+
+    function render(){
+      const cards = document.getElementById('cards');
+      const empty = document.getElementById('empty');
+      const data = readStore();
+      cards.innerHTML = '';
+      if(!data.length){ empty.classList.remove('hidden'); return }
+      empty.classList.add('hidden');
+      data.forEach(item => {
+        const el = document.createElement('div'); el.className = 'card';
+        el.innerHTML = `
+          <h4>${escapeHtml(item.name)}</h4>
+          <div class="meta">${escapeHtml(item.position || '')} • ${escapeHtml(item.email || '')}</div>
+          <div class="meta">${escapeHtml(item.phone || '')}</div>
+          <div style="margin:8px 0">
+            <button class="btn ghost" data-action="view" data-id="${item.id}">Xem CV</button>
+            <button class="btn" style="background:linear-gradient(90deg,var(--neon1),var(--neon2));color:#021028" data-action="download" data-id="${item.id}">Tải về</button>
+          </div>
+          <div class="actions-row">
+            <button class="btn ghost" data-action="edit" data-id="${item.id}">Sửa</button>
+            <button class="btn danger" data-action="del" data-id="${item.id}">Xóa</button>
+          </div>
+        `;
+        cards.appendChild(el);
+      })
+    }
+
+    function escapeHtml(s){if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c])}
+
+    // Form handling
+    let editingId = null;
+    const formPanel = document.getElementById('formPanel');
+    const formTitle = document.getElementById('formTitle');
+    document.getElementById('newBtn').addEventListener('click', ()=>openForm())
+    document.getElementById('cancelBtn').addEventListener('click', ()=>closeForm())
+    document.getElementById('saveBtn').addEventListener('click', saveForm)
+
+    document.getElementById('cvFile').addEventListener('change', async (e)=>{
+      const f = e.target.files[0];
+      if(!f) { document.getElementById('cvName').textContent = ''; return }
+      document.getElementById('cvName').textContent = f.name;
+      // read as base64
+      const b = await fileToDataURL(f);
+      document.getElementById('cvFile').dataset.base = b;
+    })
+
+    function openForm(item){
+      formPanel.classList.remove('hidden');
+      if(item){ editingId = item.id; formTitle.textContent = 'Sửa hồ sơ';
+        document.getElementById('name').value = item.name || '';
+        document.getElementById('email').value = item.email || '';
+        document.getElementById('position').value = item.position || '';
+        document.getElementById('phone').value = item.phone || '';
+        document.getElementById('cvName').textContent = item.cvName || '';
+        document.getElementById('cvFile').dataset.base = item.cvData || '';
+      } else { editingId = null; formTitle.textContent = 'Thêm hồ sơ';
+        document.getElementById('name').value='';document.getElementById('email').value='';document.getElementById('position').value='';document.getElementById('phone').value='';document.getElementById('cvName').textContent='';document.getElementById('cvFile').value='';document.getElementById('cvFile').dataset.base='';
+      }
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    function closeForm(){ formPanel.classList.add('hidden'); editingId = null }
+
+    function saveForm(){
+      const name = document.getElementById('name').value.trim();
+      if(!name){ alert('Vui lòng nhập tên ứng viên'); return }
+      const email = document.getElementById('email').value.trim();
+      const position = document.getElementById('position').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const cvData = document.getElementById('cvFile').dataset.base || '';
+      const cvName = document.getElementById('cvName').textContent || '';
+
+      const all = readStore();
+      if(editingId){
+        const idx = all.findIndex(x=>x.id===editingId);
+        if(idx>-1){ all[idx] = {...all[idx], name, email, position, phone, cvData, cvName} }
+      } else {
+        all.unshift({id:uid(), name, email, position, phone, cvData, cvName, createdAt:Date.now()})
+      }
+      writeStore(all); render(); closeForm(); showAlert('Lưu thành công')
+    }
+
+    // actions from cards
+    document.getElementById('cards').addEventListener('click', (e)=>{
+      const a = e.target.closest('button'); if(!a) return; const action = a.dataset.action; const id = a.dataset.id;
+      const all = readStore(); const item = all.find(x=>x.id===id);
+      if(action==='edit'){ openForm(item) }
+      else if(action==='del'){ if(confirm('Xóa hồ sơ này?')){ writeStore(all.filter(x=>x.id!==id)); render(); showAlert('Đã xóa') } }
+      else if(action==='view'){ if(item && item.cvData){ openDataURL(item.cvData) } else alert('Không có file CV') }
+      else if(action==='download'){ if(item && item.cvData){ downloadDataURL(item.cvData, item.cvName || (item.name + '.pdf')) } else alert('Không có file CV') }
+    })
+
+    function openDataURL(dataURL){ const w = window.open('about:blank'); if(w){ w.document.write(`<iframe src="${dataURL}" style="width:100%;height:100vh;border:none"></iframe>`); } }
+    function downloadDataURL(dataURL, filename){ const a = document.createElement('a'); a.href = dataURL; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); }
+    function fileToDataURL(file){ return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result); r.onerror = rej; r.readAsDataURL(file); }) }
+
+    // export / import
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
+      const data = readStore(); const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'candidates.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    })
+
+    document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click())
+    document.getElementById('importFile').addEventListener('change', async (e)=>{
+      const f = e.target.files[0]; if(!f) return; try{ const txt = await f.text(); const data = JSON.parse(txt); if(Array.isArray(data)){ writeStore(data); render(); showAlert('Nhập thành công'); } else alert('File JSON không hợp lệ'); }catch(err){ alert('Lỗi khi đọc file'); }
+      e.target.value='';
+    })
+
+    // small alert
+    function showAlert(msg){
+      let a = document.querySelector('.alert-box');
+      if(!a){ a = document.createElement('div'); a.className='alert-box'; a.innerHTML = '<div id="abtxt"></div>'; document.body.appendChild(a); }
+      a.querySelector('#abtxt').textContent = msg; a.classList.add('show'); setTimeout(()=>a.classList.remove('show'), 1600);
+    }
+
+    // init
+    render();
+
+  </script>
+</body>
+</html>
